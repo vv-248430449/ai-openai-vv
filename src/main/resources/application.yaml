@@ -1,0 +1,42 @@
+vv:
+  # 官方（自行配置）
+  openai:
+    key: ${OPENAI_KEY}
+    url: ${OPENAI_URL}
+  # 中转（自行配置）
+  aicore:
+    key: ${OPEN_AI_KEY}
+    url: ${OPEN_AI_URL}
+
+spring:
+  ai:
+    openai:
+#      api-key: ${vv.aicore.key}
+#      base-url: https://api.openai.com/v1 ${vv.aicore.url}
+      api-key: sk-wb7PCLzQP0heetHernlSkenVDcI2wiqluloSU52JzgBhkr8e
+      base-url: https://api.moonshot.cn/v1
+      chat:
+        model: kimi-k2.6
+
+      #image:
+      #  api-key: ${xushu.openai.key}
+      #  base-url: ${xushu.openai.url}
+#      audio:
+#        transcription:
+#          api-key: ${xushu.openai.key}
+#          base-url: https://api.openai.com/v1 ${xushu.openai.url}
+
+# ============ 多租户 demo 配置：租户列表（不是 Map） ============
+# 演示用 H2 内存库（DB_CLOSE_DELAY=-1 让库在 JVM 存活期间不丢）。
+# 真实项目换成各租户的 MySQL/PostgreSQL url + 账号密码即可。
+# 注意：Spring Boot 4 的 @ConfigurationProperties 构造器绑定不支持 Map<String,对象>，
+# 所以用 List，每个租户显式带一个 id 作为运行时 Map 的 key。
+tenants:
+  - id: t1
+    url: jdbc:h2:mem:tenant1;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+  - id: t2
+    url: jdbc:h2:mem:tenant2;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
