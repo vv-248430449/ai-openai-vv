@@ -51,6 +51,7 @@ public class DemoController {
         String content = chatClient.prompt()
                 .user(message)
                 .tools(tenantLocationService)
+                // @Tool 要从 ToolContext 取 tenantId——tenantId 从哪来？真实系统里它来自 JWT/会话
                 .toolContext(Map.of("tenantId", tenant))   // 必须提供：@Tool 方法要从这里取 tenantId
                 .options(OpenAiChatOptions.builder().model("kimi-k2.6"))
                 .call()
