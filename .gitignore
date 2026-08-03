@@ -19,6 +19,7 @@ target/
 *.iml
 *.ipr
 *.log
+*moon_test.txt
 
 ### NetBeans ###
 /nbproject/private/
@@ -32,3 +33,4 @@ build/
 
 ### VS Code ###
 .vscode/
+!/moon_test.txt

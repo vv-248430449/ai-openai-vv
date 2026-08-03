@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.Assumptions;
 
 /**
  * ──────────────────────────────────────────────────────────────
@@ -43,6 +44,13 @@ class AiEvalTest {
 
     @Test
     void evalLlmAnswers() {
+        // 没有 API Key 就跳过这段真实 LLM eval：
+        //  - 本地没设 OPENAI_KEY 时，mvn test 依然全绿（不会因缺密钥而红）
+        //  - CI 里没配 secret 的 fork PR 也会跳过，保证徽标常绿
+        //  - 配了密钥（本地环境变量 / CI 的 secrets.OPENAI_KEY）时，才会真正跑评估
+        Assumptions.assumeTrue(System.getenv("OPENAI_KEY") != null,
+                "OPENAI_KEY 未设置，跳过真实 LLM eval");
+
         // Cases：问题 + 期望关键词（答案确定型任务最适合规则法）
         Object[][] cases = {
             {"1+1 等于几？只回答数字。", "2"},

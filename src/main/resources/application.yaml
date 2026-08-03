@@ -1,19 +1,19 @@
 vv:
   # 官方（自行配置）
   openai:
-    key: ${OPENAI_KEY}
-    url: ${OPENAI_URL}
+    key: ${OPENAI_KEY:__no_key__}
+    url: ${OPENAI_URL:}
   # 中转（自行配置）
   aicore:
-    key: ${OPEN_AI_KEY}
-    url: ${OPEN_AI_URL}
+    key: ${OPEN_AI_KEY:__no_key__}
+    url: ${OPEN_AI_URL:}
 
 spring:
   ai:
     openai:
-#      api-key: ${vv.aicore.key}
-#      base-url: https://api.openai.com/v1 ${vv.aicore.url}
-      api-key: ${OPENAI_KEY}
+      #      api-key: ${vv.aicore.key}
+      #      base-url: https://api.openai.com/v1 ${vv.aicore.url}
+      api-key: ${OPENAI_KEY:__no_key__}
       base-url: https://api.moonshot.cn/v1
       chat:
         model: kimi-k2.6

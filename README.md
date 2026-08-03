@@ -1,5 +1,7 @@
 # ai-openai-vv
 
+![CI](https://github.com/vv-248430449/ai-openai-vv/actions/workflows/ci.yml/badge.svg)
+
 > 一个基于 **Spring AI 2.0** 的 LLM（大语言模型，*Large Language Model*）应用**学习 / 演示工程**。
 > 用同一套 `ChatClient` 抽象，把「文本对话、流式响应、文生图、语音、多模态、Function Calling（函数调用）、多租户数据隔离」等能力一次性跑通。
 
@@ -47,7 +49,7 @@
 | **模型服务** | Moonshot(Kimi) `https://api.moonshot.cn/v1`，模型 `kimi-k2.6`（OpenAI 兼容协议） |
 | **数据库** | H2 内存库（仅多租户演示用，无需外部 MySQL） |
 | **Lombok** | 1.18.30（编译期注解，减少样板代码） |
-| **构建工具** | Maven（项目自带 `./mvnw` 包装器，无需本机预装 Maven） |
+| **构建工具** | Maven（CI 用 runner 自带 `mvn`；本地 `./mvnw` 当前为空文件，可改用 `mvn` 命令） |
 
 > 依赖关系：`spring-boot-starter-webmvc`（Web 服务）+ `spring-ai-starter-model-openai`（AI 客户端）+ `spring-boot-starter-jdbc` + `h2`（多租户演示）+ `spring-boot-starter-webmvc-test`（测试）。
 
@@ -177,6 +179,29 @@ curl "http://localhost:8080/demo/count?tenant=t1&name=张伟&location=北京"
 3. 最后啃 `multitenant/demo`（上下文隔离、DAO、注册表）——这块最贴近真实企业需求。
 
 **它和你找工作有什么关系**：新闻里反复在说——"AI 生成得快，但**对不对没人敢直接信**"。本项目里 `/ai/simple` 就是天然的 **eval（评估）SUT（被测系统）**：把"问题+期望答案"写成用例集、自动跑一遍、统计通过率，你就掌握了 2026 年 AI coding 岗最值钱的"**会验证 AI**"能力。相关演示见 `src/test/java/ai/openai/vv/AiEvalTest.java`。
+
+---
+
+## 九、eval 自动跑（GitHub Actions CI）
+
+本项目把「有 eval」升级成了「**eval 自动跑**」：每次 push / PR 到 `main`，GitHub Actions 会用 JDK 17 自动执行 `mvn test`，其中的 `AiEvalTest` 会在**配置了 `OPENAI_KEY` 时真实调用大模型、统计通过率**。
+
+- CI 工作流文件：`.github/workflows/ci.yml`
+- 状态徽标（标题下方）：绿 = 构建 + eval 通过；黄（skipped）= eval 被跳过（未配密钥）；红 = 构建或 eval 失败
+- 三种状态含义：
+  - **绿**：你自己的 push（仓库已配置 `OPENAI_KEY` secret）会真实跑 LLM eval 并全部通过。
+  - **黄（skipped）**：CI 没拿到 `OPENAI_KEY`（例如 fork 的 PR 默认拿不到仓库 secret），`AiEvalTest` 会优雅跳过，徽标仍绿。
+  - **红**：编译失败，或真实 eval 时模型回答不满足用例期望（可通过 `Assumptions` 守卫在本地先 `mvn test` 复现）。
+
+### 让 CI 真正跑起 eval，你需要做一件事
+在 GitHub 仓库 **Settings → Secrets and variables → Actions → New repository secret** 里添加：
+```
+Name:  OPENAI_KEY
+Value: 你的真实 API Key（sk- 开头那个，和本地 application.yaml 用的是同一个）
+```
+添加后，下一次 push 到 `main` 就会自动带上密钥、真实执行 eval。
+
+> 注：本机 `./mvnw` 包装器目前在仓库里是空文件（0 字节），本地可用 `mvn test` 代替；CI 用的是 runner 自带的 `mvn`，不受影响。
 
 ---
 
