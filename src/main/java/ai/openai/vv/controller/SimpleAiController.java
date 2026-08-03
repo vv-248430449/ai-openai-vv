@@ -56,7 +56,7 @@ public class SimpleAiController {
 	 * */
 	@GetMapping("/ai/simple")
 	public Map<String, String> completion(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message) {
-		System.out.println(openAiKey);
+		;
 		var value=chatClient.prompt()
 
 				.user(message).call().content();
@@ -72,7 +72,7 @@ public class SimpleAiController {
 	 * */
 	@GetMapping(value="/ai/stream",produces="text/sse;charset=UTF-8")
 	public Flux<String> stream(@RequestParam(value = "message", defaultValue = "给我讲个笑话") String message ) {
-		System.out.println(openAiKey);
+		;
 		return chatClient.prompt()
 				.user(message)
 				.stream()
