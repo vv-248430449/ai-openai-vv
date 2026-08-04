@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
-# 最小可用 CI：每次 push / PR 到 main，用 JDK17 跑 `mvn test`，
-# 其中的 AiEvalTest 会在配置了 OPENAI_KEY secret 时真实调用大模型做 eval。
+# 最小可用 CI：每次 push / PR 到 main，用 JDK17 跑 `mvn -B test`，
+# 其中 AiEvalTest 会真实调用大模型做 eval（必须配置 OPENAI_KEY，否则标红）。
 name: CI
 
 on:
@@ -23,8 +23,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      # 注：本仓库的 ./mvnw 目前是空文件（0 字节），故直接用 runner 自带的 mvn。
-      # 若日后修好 mvnw，把下面这行换成 `./mvnw -B test` 即可。
+      # 本地与 CI 统一用 mvn -B test（GitHub ubuntu runner 自带 mvn；本机已装 Maven 同理）
       - name: Build & run tests (eval)
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}

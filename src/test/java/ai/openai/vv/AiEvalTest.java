@@ -4,7 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.junit.jupiter.api.Assumptions;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * ──────────────────────────────────────────────────────────────
@@ -20,10 +21,15 @@ import org.junit.jupiter.api.Assumptions;
  *   2) Scorer（评分器）：把「输出」判定成 通过 / 不通过。最简 = 规则法 contains。
  *   3) Cases（用例集）：一组「问题 + 期望关键词」。
  *
- * 跑法：
- *   ./mvnw test -Dtest=AiEvalTest
- * 需要：
- *   application.yaml 里配置好的【可用】API Key + 运行环境能联网访问模型端点。
+ * 跑法（本地与 CI 共用根目录 Makefile，避免漂移）：
+ *   make test          # 跑全部测试
+ *   make test-eval     # 只跑本 eval 类
+ *
+ * 需要（必须）：
+ *   application.yaml 里配置好的【可用】API Key
+ *   （本地环境变量 OPENAI_KEY，或 CI 的 secrets.OPENAI_KEY）
+ *   + 运行环境能联网访问模型端点。
+ *   未配置密钥时测试会直接失败标红——宁可红，也不要假绿。
  *
  * 进阶（用到再说，别一步到位）：
  *   Lv2 LLM-as-judge（再调一次模型当裁判打分）
@@ -44,12 +50,8 @@ class AiEvalTest {
 
     @Test
     void evalLlmAnswers() {
-        // 没有 API Key 就跳过这段真实 LLM eval：
-        //  - 本地没设 OPENAI_KEY 时，mvn test 依然全绿（不会因缺密钥而红）
-        //  - CI 里没配 secret 的 fork PR 也会跳过，保证徽标常绿
-        //  - 配了密钥（本地环境变量 / CI 的 secrets.OPENAI_KEY）时，才会真正跑评估
-        Assumptions.assumeTrue(System.getenv("OPENAI_KEY") != null,
-                "OPENAI_KEY 未设置，跳过真实 LLM eval");
+        // 必须配置可用的 OPENAI_KEY（本地环境变量 或 CI 的 secrets.OPENAI_KEY），
+        // 否则下方真实调用大模型会失败 → 测试标红（已移除跳过逻辑，宁可红也不要假绿）。
 
         // Cases：问题 + 期望关键词（答案确定型任务最适合规则法）
         Object[][] cases = {
@@ -72,5 +74,7 @@ class AiEvalTest {
                     ok ? "PASS" : "FAIL", q, expect, out);
         }
         System.out.printf("===== eval 通过率 %d/%d =====%n", pass, cases.length);
+        // eval 通过率门禁：3 个用例必须全过，否则标红
+        assertEquals(pass, cases.length);
     }
 }
