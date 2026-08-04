@@ -1,12 +1,8 @@
-#!/usr/bin/env bash
-# ============================================================================
-# 运行 LLM eval 测试：ai.openai.vv.AiEvalTest#evalLlmAnswers
-# 前置条件�?#   1. 本机已安�?Maven 并加�?PATH（mvn -v 可正常输出版本）
-#   2. 已配置环境变�?OPENAI_KEY（否则测试会直接标红 FAIL�?# 用法�?#   bash scripts/test-eval.sh
-#   或赋予可执行权限后直接运行：  chmod +x scripts/test-eval.sh && ./scripts/test-eval.sh
-# ============================================================================
+﻿#!/usr/bin/env bash
 set -euo pipefail
-
-echo "[INFO] 启动 LLM eval 测试 ..."
-mvn test -Dtest=ai.openai.vv.AiEvalTest#evalLlmAnswers
-echo "[PASS] eval 测试全部通过"
+# One-click LLM eval test: ai.openai.vv.AiEvalTest#evalLlmAnswers
+# Prereq: Maven on PATH + OPENAI_KEY env var set (else test fails red).
+# pom excludes @Tag("eval") by default; -Dskip.eval.group= clears it so eval runs.
+echo "[INFO] Running LLM eval test: AiEvalTest#evalLlmAnswers"
+mvn test -Dtest=ai.openai.vv.AiEvalTest#evalLlmAnswers -Dskip.eval.group=
+echo "[PASS] eval test passed."

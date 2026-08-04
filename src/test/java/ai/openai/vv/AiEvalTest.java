@@ -1,5 +1,6 @@
 package ai.openai.vv;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,35 +19,35 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *
  * eval 永远逃不出三段式：
  *   1) SUT（被测系统，System Under Test）：本项目里就是 Spring 注入的 ChatClient。
- *   2) Scorer（评分器）：把「输出」判定成 通过 / 不通过。最简 = 规则法 contains。
+ *   2) Scorer（评分器）：见 RuleScorer（已抽成独立纯逻辑组件，可单测）。
  *   3) Cases（用例集）：一组「问题 + 期望关键词」。
  *
- * 跑法（本地与 CI 共用根目录 Makefile，避免漂移）：
- *   make test          # 跑全部测试
- *   make test-eval     # 只跑本 eval 类
+ * 测试分层（本仓库约定）：
+ *   - @Tag("unit")  ：纯逻辑单测（EvalScorerTest），不调模型、零成本，
+ *                     本地 `mvn test` 默认跑（pom 用 excludedGroups 排除 eval）。
+ *   - @Tag("eval")   ：本类，真实调用大模型做评估，默认被 pom 的 excludedGroups 排除，
+ *                     仅 CI（带 key）或 scripts/test-eval.bat 显式开启时运行。
  *
- * 需要（必须）：
- *   application.yaml 里配置好的【可用】API Key
- *   （本地环境变量 OPENAI_KEY，或 CI 的 secrets.OPENAI_KEY）
- *   + 运行环境能联网访问模型端点。
- *   未配置密钥时测试会直接失败标红——宁可红，也不要假绿。
+ * 跑法：
+ *   本地纯单测（免费）：   mvn test                                       （或 scripts\test.bat）
+ *   真·模型 eval（花钱）： mvn test -Dtest=AiEvalTest -Dskip.eval.group=   （或 scripts\test-eval.bat）
+ *   CI：                  mvn -B test -Dskip.eval.group=                   （跑全部，含 eval）
  *
- * 进阶（用到再说，别一步到位）：
- *   Lv2 LLM-as-judge（再调一次模型当裁判打分）
- *   Lv3 人工标注对照（攒标准答案做「模型 vs 人」一致性）
+ * 需要（必须）：application.yaml 配置好的【可用】API Key
+ *   （本地环境变量 OPENAI_KEY，或 CI 的 secrets.OPENAI_KEY）+ 运行环境能联网。
+ *   未配置密钥时真实调用会失败 → 测试标红（宁可红，也不要假绿）。
  * ──────────────────────────────────────────────────────────────
  */
 @SpringBootTest
+@Tag("eval")
 class AiEvalTest {
 
     /** SUT：Spring 注入的真实 ChatClient（底层指向 application.yaml 配置的模型） */
     @Autowired
     ChatClient chatClient;
 
-    /** Scorer（Lv1 规则法）：输出里包含期望关键词就算通过 */
-    boolean score(String output, String expect) {
-        return output != null && output.contains(expect);
-    }
+    /** Scorer（Lv1 规则法）：已抽成独立组件 RuleScorer，见 EvalScorerTest 的纯逻辑单测 */
+    private final RuleScorer scorer = new RuleScorer();
 
     @Test
     void evalLlmAnswers() {
@@ -68,7 +69,7 @@ class AiEvalTest {
             // SUT：真实调用大模型（这里就是 /ai/simple 背后的同一行代码）
             String out = chatClient.prompt().user(q).call().content();
 
-            boolean ok = score(out, expect);
+            boolean ok = scorer.score(out, expect);
             if (ok) pass++;
             System.out.printf("[%s] %s%n       期望含: %s%n       实际  : %s%n%n",
                     ok ? "PASS" : "FAIL", q, expect, out);

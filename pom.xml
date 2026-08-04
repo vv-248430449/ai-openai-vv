@@ -29,6 +29,9 @@
     <properties>
         <java.version>17</java.version>
         <spring-ai.version>2.0.0</spring-ai.version>
+        <!-- 测试分层：默认本地 `mvn test` 排除 @Tag("eval")（真·模型评估），
+             避免每次跑测试都烧 API 额度；CI 用 -Dskip.eval.group= 清空该值即跑全部（含 eval）。 -->
+        <skip.eval.group>eval</skip.eval.group>
     </properties>
     <dependencies>
         <dependency>
@@ -43,6 +46,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 修复 IDEA 单测"运行方法"报 NoSuchMethodError(getMethodParameterTypes)：
+             让 IDEA 用项目里版本匹配的 junit-platform-launcher，而非其自带的旧版。
+             版本由 spring-boot-starter-parent(4.1.0) 的 dependencyManagement 统一管理。 -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -80,6 +91,14 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- 默认排除 @Tag("eval")；CI 用 -Dskip.eval.group= 清空后全跑 -->
+                    <excludedGroups>${skip.eval.group}</excludedGroups>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -1,24 +1,17 @@
 @echo off
 setlocal
-
 REM ============================================================================
 REM One-click LLM eval test: ai.openai.vv.AiEvalTest#evalLlmAnswers
-REM Prerequisites:
-REM   1. Maven installed and on PATH (verify with: mvn -v)
-REM   2. OPENAI_KEY environment variable set (otherwise test fails red)
-REM Usage:
-REM   cmd / PowerShell / IDEA Terminal:  scripts\test-eval.bat
-REM   Double-click also works; window pauses at end to show results.
-REM   To skip pause in a terminal, delete the final "pause" line.
+REM Prereq: Maven on PATH + OPENAI_KEY env var set (else test fails red).
+REM NOTE: pom excludes @Tag("eval") by default; -Dskip.eval.group= clears that
+REM       exclusion so this script actually runs the real model eval.
 REM ============================================================================
-
 echo [INFO] Running LLM eval test: AiEvalTest#evalLlmAnswers
-mvn test -Dtest=ai.openai.vv.AiEvalTest#evalLlmAnswers
+mvn test -Dtest=ai.openai.vv.AiEvalTest#evalLlmAnswers -Dskip.eval.group=
 if errorlevel 1 (
     echo [FAIL] eval test failed. See Maven output above.
     pause
     exit /b 1
 )
-
 echo [PASS] eval test passed.
 pause
