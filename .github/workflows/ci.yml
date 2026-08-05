@@ -1,6 +1,7 @@
 # .github/workflows/ci.yml
-# 最小可用 CI：每次 push / PR 到 main，用 JDK17 跑 `mvn -B test`，
-# 其中 AiEvalTest 会真实调用大模型做 eval（必须配置 OPENAI_KEY，否则标红）。
+# 最小可用 CI：每次 push / PR 到 main，用 JDK17 跑 `mvn -B verify`，其中包含：
+#   1) surefire 跑全部测试（含 @Tag("eval") 的真实大模型 eval，需 OPENAI_KEY，否则标红）
+#   2) jacoco:check 比对覆盖率阈值（LINE >= 0.40），不达标即 BUILD FAILURE（② 覆盖率门禁）
 name: CI
 
 on:
@@ -23,8 +24,9 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      # 本地与 CI 统一用 mvn -B test（GitHub ubuntu runner 自带 mvn；本机已装 Maven 同理）
-      - name: Build & run tests (eval)
+      # 本地与 CI 统一用 mvn。这里跑 verify（含 test + jacoco:check 门禁）。
+      # -Dskip.eval.group= 清空 pom 里默认的 eval 排除，使真实大模型 eval 在 CI 跑起来。
+      - name: Build, eval & coverage gate
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-        run: mvn -B test
+        run: mvn -B verify -Dskip.eval.group=

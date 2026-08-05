@@ -182,16 +182,18 @@ curl "http://localhost:8080/demo/count?tenant=t1&name=张伟&location=北京"
 
 ---
 
-## 九、eval 自动跑（GitHub Actions CI）
+## 九、eval 自动跑 + 门禁（GitHub Actions CI）
 
-本项目把「有 eval」升级成了「**eval 自动跑**」：每次 push / PR 到 `main`，GitHub Actions 会用 JDK 17 自动执行 `mvn test`，其中的 `AiEvalTest` 会在**配置了 `OPENAI_KEY` 时真实调用大模型、统计通过率**。
+本项目把「有 eval」升级成了「**eval 自动跑 + 多层门禁**」：每次 push / PR 到 `main`，GitHub Actions 用 JDK 17 执行 `mvn -B verify`，依次完成：
+
+1. **跑测试**：surefire 执行全部测试，其中 `AiEvalTest` 在配置 `OPENAI_KEY` 时**真实调用大模型、统计通过率**（③ eval 通过率门禁）。
+2. **覆盖率门禁**：jacoco:check 比对 `src/main` 被测试碰过的比例，低于阈值（当前 `LINE >= 0.40`）即 `BUILD FAILURE`（② 覆盖率门禁）。
 
 - CI 工作流文件：`.github/workflows/ci.yml`
-- 状态徽标（标题下方）：绿 = 构建 + eval 通过；黄（skipped）= eval 被跳过（未配密钥）；红 = 构建或 eval 失败
-- 三种状态含义：
-  - **绿**：你自己的 push（仓库已配置 `OPENAI_KEY` secret）会真实跑 LLM eval 并全部通过。
-  - **黄（skipped）**：CI 没拿到 `OPENAI_KEY`（例如 fork 的 PR 默认拿不到仓库 secret），`AiEvalTest` 会优雅跳过，徽标仍绿。
-  - **红**：编译失败，或真实 eval 时模型回答不满足用例期望（可通过 `Assumptions` 守卫在本地先 `mvn test` 复现）。
+- 状态徽标（标题下方）：绿 = 构建 + eval + 覆盖率全过；红 = 任一失败
+- 状态含义：
+  - **绿**：你自己的 push（仓库已配 `OPENAI_KEY` secret）真实跑 LLM eval 全过，且行覆盖率达标。
+  - **红**：编译失败 / 模型回答不满足用例（③ 触发）/ 覆盖率低于阈值（② 触发）。未配 `OPENAI_KEY` 时真实调用会失败 → 红（**宁可红，不假绿**）。
 
 ### 让 CI 真正跑起 eval，你需要做一件事
 在 GitHub 仓库 **Settings → Secrets and variables → Actions → New repository secret** 里添加：
@@ -199,7 +201,14 @@ curl "http://localhost:8080/demo/count?tenant=t1&name=张伟&location=北京"
 Name:  OPENAI_KEY
 Value: 你的真实 API Key（sk- 开头那个，和本地 application.yaml 用的是同一个）
 ```
-添加后，下一次 push 到 `main` 就会自动带上密钥、真实执行 eval。
+添加后，下一次 push 到 `main` 就会自动带上密钥、真实执行 eval 与覆盖率检查。
+
+### ② 覆盖率门禁（JaCoCo）怎么调阈值
+- 阈值写在 `pom.xml` 的 `jacoco-maven-plugin` → `check` → `minimum`（当前 0.40，即行覆盖率 40%）。
+- 首次 CI 跑完后，看 Actions 日志里 jacoco 报告的**实际行覆盖率**；若门禁标红，二选一：
+  - 把 `minimum` 调到「实际值 − 0.1」附近（先让门禁稳定绿），或
+  - 补测试把覆盖率顶上去（更符合门禁本意）。
+- 本地看报告：跑 `mvn test` 后打开 `target/site/jacoco/index.html`。
 
 > 注：本机 `./mvnw` 包装器目前在仓库里是空文件（0 字节），本地可用 `mvn test` 代替；CI 用的是 runner 自带的 `mvn`，不受影响。
 
