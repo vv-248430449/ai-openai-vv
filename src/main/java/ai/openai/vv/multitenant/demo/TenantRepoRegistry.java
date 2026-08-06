@@ -5,6 +5,8 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -34,6 +36,10 @@ import java.util.Map;
 @Component
 public class TenantRepoRegistry {
 
+    /** 以 UTF-8 输出，避免 Windows(GBK) 控制台下 System.out 中文乱码 */
+    private static final PrintStream OUT =
+            new PrintStream(System.out, true, StandardCharsets.UTF_8);
+
     private final TenantProperties properties;
     private final Map<String, TenantRepo> repos = new LinkedHashMap<>();
 
@@ -62,7 +68,7 @@ public class TenantRepoRegistry {
 
             // 4) 以租户ID为 key 落进 Map
             repos.put(tenantId, repo);
-            System.out.println("[repoRegistry] 已注册租户数据源: " + tenantId + " -> " + cfg.url());
+            OUT.println("[repoRegistry] 已注册租户数据源: " + tenantId + " -> " + cfg.url());
         }
     }
 

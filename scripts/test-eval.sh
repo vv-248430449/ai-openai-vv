@@ -1,8 +1,8 @@
 ﻿#!/usr/bin/env bash
 set -euo pipefail
-# One-click LLM eval test: ai.openai.vv.AiEvalTest#evalLlmAnswers
-# Prereq: Maven on PATH + OPENAI_KEY env var set (else test fails red).
-# pom excludes @Tag("eval") by default; -Dskip.eval.group= clears it so eval runs.
-echo "[INFO] Running LLM eval test: AiEvalTest#evalLlmAnswers"
-mvn test -Dtest=ai.openai.vv.AiEvalTest#evalLlmAnswers -Dskip.eval.group=
+# Real LLM eval: run AiEvalTest with a real model call (costs tokens/API fee).
+# Prerequisites: Maven on PATH; OPENAI_KEY env var set.
+# Optional budget guard: append  -Deval.budget.tokens=N  (0 = no limit, default)
+echo "[INFO] Running real LLM eval (costs tokens): AiEvalTest"
+mvn test -Dtest=AiEvalTest -Dskip.eval.group=
 echo "[PASS] eval test passed."

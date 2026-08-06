@@ -29,6 +29,8 @@
     <properties>
         <java.version>17</java.version>
         <spring-ai.version>2.0.0</spring-ai.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- 测试分层：默认本地 `mvn test` 排除 @Tag("eval")（真·模型评估），
              避免每次跑测试都烧 API 额度；CI 用 -Dskip.eval.group= 清空该值即跑全部（含 eval）。 -->
         <skip.eval.group>eval</skip.eval.group>
@@ -92,12 +94,24 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- 方案B：用 exec:java 启动（与 Maven 同 JVM，IDEA Stop 能干净终止，不留孤儿进程/端口占用） -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>ai.openai.vv.AiOpenaiVvApplication</mainClass>
+                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <!-- 默认排除 @Tag("eval")；CI 用 -Dskip.eval.group= 清空后全跑 -->
                     <excludedGroups>${skip.eval.group}</excludedGroups>
+                    <!-- 测试 JVM 强制 UTF-8 输出，避免 Windows 下 Git Bash/cmd 中文乱码
+                         （Java 默认 file.encoding 在 Windows 为 GBK，与 UTF-8 终端对不上）。 -->
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
                 </configuration>
             </plugin>
 
