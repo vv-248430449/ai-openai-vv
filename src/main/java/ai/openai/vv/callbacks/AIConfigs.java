@@ -17,4 +17,12 @@ public class AIConfigs {
                 .build();
     }
 
+    @Bean
+    ChatClient chatClientForTest(ChatClient.Builder builder) {
+        //单租户，全局默认
+//        return builder.defaultToolContext(Map.of("tenantId", "t1")).defaultSystem("我叫徐庶， 我5岁。 我希望你以我爸爸的身份和我对话，你不再是ChatGpt。")
+        return builder
+                .build();
+    }
+
 }

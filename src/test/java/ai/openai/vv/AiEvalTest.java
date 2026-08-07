@@ -21,8 +21,9 @@ import static org.junit.jupiter.api.Assertions.fail;
  * ──────────────────────────────────────────────────────────────
  *
  * eval 永远逃不出三段式（详见 wiki/programming/eval-three-stage.md）：
- *   1) SUT（被测系统）：本项目里就是 Spring 注入的 ChatClient。
- *   2) Scorer（评分器）：见 RuleScorer（Lv1 规则法，已抽成独立纯逻辑组件）。
+ *   1) SUT（被测系统 System Under Test）：本项目里就是 Spring 注入的 ChatClient。
+ *   2) Scorer（评分器）：见 RuleScorer（Lv1 规则法，零成本）与 LlmJudgeScorer（Lv2 LLM-as-judge，
+ *      兜开放题）。本类按用例 scorer 字段分流到具体实现（未知级别直接抛异常，证明字段被真实消费）。
  *   3) Cases（用例集）：src/test/resources/eval-cases.json（加用例=加一行 JSON）。
  *
  * 测试分层（本仓库约定）：
@@ -38,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  *                                                                               （或 scripts\test-eval-mock.bat）
  *
  * 本地可控真 eval（防手滑烧钱）：
- *   -Deval.mock=true         ：不调模型，SUT 直接返回 expect，验证"循环+打分+断言"链路，0 费用。
+ *   -Deval.mock=true         ：不调模型，SUT 用 JSON 的 mockOutput（缺省退化为 expect）替代真实返回，
  *   -Deval.budget.tokens=N   ：真实 eval 时累计 token 用量，超过 N 即标红（0=不限制，默认）。
  *
  * 需要（仅真实 eval 需要）：application.yaml 配置好的【可用】API Key
@@ -56,11 +57,9 @@ class AiEvalTest {
 
     /** SUT：Spring 注入的真实 ChatClient（底层指向 application.yaml 配置的模型） */
     @Autowired
-    ChatClient chatClient;
+    ChatClient chatClientForTest;
 
-    /** Scorer（Lv1 规则法）：已抽成独立组件 RuleScorer，见 EvalScorerTest 的纯逻辑单测 */
-    private final RuleScorer scorer = new RuleScorer();
-
+    /** Scorer 接口：Lv1=RuleScorer，Lv2=LlmJudgeScorer，按用例 scorer 字段在循环内分流 */
     @Test
     void evalLlmAnswers() throws Exception {
         // Cases：从 JSON 读取（数据化，加用例=加一行 JSON，不改 Java）
@@ -77,14 +76,28 @@ class AiEvalTest {
 
         for (EvalCase c : cases) {
             String out;
+            Scorer scorer;
             if (mock) {
-                // 离线模式：SUT 直接返回期望答案，验证"循环+打分+断言" plumbing，不烧 token。
-                // （想顺便验证 scorer 归一化，可改成返回中文形式如"二"，这里保持最简。）
-                out = c.expect();
+                // ── 离线烟囱测试（smoke test / 管线装配测试 pipeline-plumbing test）──
+                // 不调模型，用 JSON 里声明的 mockOutput 当"被 mock 的模型输出"，
+                // 真实跑一遍「打分 + 断言」管线，验证 scorer 在完整链路里的归一化/鲁棒性是否生效。
+                //
+                // 为什么加 mockOutput（加 vs 不加的区别）：
+                //   · 不加（旧写法 out = c.expect()）：expect 与自身比较，必然相等，
+                //     对「模型对不对」零意义——等于在测"测试"本身，是经典 anti-pattern，
+                //     只能确认"管线没断"，连 scorer 逻辑都没真正验到。
+                //   · 加（新写法 out = c.mockOutput()）：注入对抗输入（adversarial input，
+                //     如故意带全角逗号的「你好，世界」），才能真验 RuleScorer 的归一化在
+                //     整条管线里是否生效（应 PASS）；这是 EvalScorerTest 纯单测在集成层的补强。
+                //   · mockOutput 为 null 时退化回旧行为（out = expect），保持向后兼容。
+                //
+                // 评分器仍统一用规则分（零成本），L2 的 judge 调用留给 else 真实分支。
+                out = (c.mockOutput() != null) ? c.mockOutput() : c.expect();
+                scorer = new RuleScorer();
             } else {
                 // 真实 SUT：调用大模型，并捕获 token 用量用于预算守卫。
                 // Spring AI 2.x：call() 返回 CallResponseSpec；.chatResponse() 得到 ChatResponse。
-                ChatResponse resp = chatClient.prompt().user(c.input()).call().chatResponse();
+                ChatResponse resp = chatClientForTest.prompt().user(c.input()).call().chatResponse();
                 // ChatResponse(普通类)→getResult() 得 Generation；getOutput() 得 AssistantMessage(普通类)；
                 // AssistantMessage 继承 AbstractMessage，取文本用 getText()（来自 Content 接口，非 content()/getContent()）。
                 out = resp.getResult().getOutput().getText();
@@ -94,8 +107,14 @@ class AiEvalTest {
                 if (total != null) {
                     used += total;
                 }
+                // 按用例声明的 scorer 级别分流：L1 规则法 / L2 LLM-as-judge（兜开放题）。
+                // 未知级别直接抛异常——这证明 scorer 字段是被真实消费的，而非装饰字段。
+                scorer = switch (c.scorer()) {
+                    case "L1" -> new RuleScorer();
+                    case "L2" -> new LlmJudgeScorer(chatClientForTest);
+                    default  -> throw new IllegalArgumentException("未知 scorer 级别: " + c.scorer());
+                };
             }
-
             boolean ok = scorer.score(out, c.expect());
             if (ok) pass++;
             OUT.printf("[%s] %s%n       期望含: %s%n       实际  : %s%n%n",
